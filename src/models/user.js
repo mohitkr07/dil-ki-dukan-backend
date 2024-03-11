@@ -60,6 +60,17 @@ userSchema.methods.follow = async function (userIdToFollow) {
     throw new Error(`Error following user: ${error.message}`);
   }
 };
+userSchema.methods.unfollow = async function (userIdToUnfollow) {
+  const user = this;
+  try {
+    if (user.following.includes(userIdToUnfollow)) {
+      user.following.pull(userIdToUnfollow);
+      await user.save();
+    }
+  } catch (error) {
+    throw new Error(`Error following user: ${error.message}`);
+  }
+};
 
 // Create a virtual field to get followers
 userSchema.virtual("followers", {

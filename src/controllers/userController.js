@@ -22,8 +22,48 @@ const test = async (req, res) => {
 const getUser = async (req, res) => {
   try {
     const user = req.user;
-    res.status(200).send({ message: "User fetched", user });
+
+    const followers = await user.populate("followers", "name email");
+
+    await user.populate("following", "name email");
+
+    // add followers to user and send, make separate object, combile user and followers
+    delete user.password;
+    delete user.tokens;
+
+    const userMod = {
+      ...user.toObject(),
+      followers: user.followers,
+    };
+
+    console.log("usermod", userMod);
+
+    console.log("user", user);
+
+    res.status(200).send({ message: "User fetched", user: userMod });
   } catch (error) {
+    res.send({ msg: "error" });
+  }
+};
+
+const getPeople = async (req, res) => {
+  try {
+    const _id = req.params.id;
+
+    const user = await User.findById(_id).populate("following", "name email");
+
+    const followers = await user.populate("followers", "name email");
+
+    const userMod = {
+      ...user.toObject(),
+      followers: user.followers,
+    };
+
+    console.log("people", user);
+
+    res.status(200).send({ message: "User fetched", user: userMod });
+  } catch (error) {
+    console.log(error);
     res.send({ msg: "error" });
   }
 };
@@ -104,6 +144,33 @@ const getPosts = async (req, res) => {
   }
 };
 
+const getPeoplePosts = async (req, res) => {
+  try {
+    const peopldId = req.params.id;
+    const userId = req.user._id;
+
+    const posts = await Post.find({ author: peopldId })
+      .populate("likes.user")
+      .populate("author")
+      .sort({ createdAt: -1 });
+
+    const withLikes = posts.map((post) => {
+      const liked = post.likes.some((like) => like.user.equals(userId));
+
+      return {
+        ...post.toObject(),
+        liked,
+      };
+    });
+
+    console.log(withLikes);
+
+    res.status(200).send({ message: "Posts fetched", posts: withLikes });
+  } catch (error) {
+    res.status(500).send({ message: "Internal server error" });
+  }
+};
+
 const likePost = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -150,17 +217,28 @@ const likePost = async (req, res) => {
 const followUser = async (req, res) => {
   try {
     const user = req.user;
-    const userIdToFollow = req.params.id;
+    const userId = req.params.id;
 
-    await user.follow(userIdToFollow);
+    const isFollowing = user.following.includes(userId);
 
-    const updatedUser = await User.findById(user._id).populate("followers");
+    if (isFollowing) {
+      await user.unfollow(userId);
+      const updatedUser = await User.findById(user._id).populate("followers");
 
-    res
-      .status(200)
-      .send({ message: "Successfully followed user", updatedUser });
+      return res
+        .status(200)
+        .send({ message: "Successfully unfollowed user", updatedUser });
+    } else {
+      await user.follow(userId);
+
+      const updatedUser = await User.findById(user._id).populate("followers");
+
+      return res
+        .status(200)
+        .send({ message: "Successfully followed user", updatedUser });
+    }
   } catch (error) {
-    res.status(400).send({ error: error.message });
+    return res.status(400).send({ error: error.message });
   }
 };
 
@@ -201,20 +279,24 @@ const getFollowing = async (req, res) => {
 
 const searchUser = async (req, res) => {
   try {
-    const query = req.query.q; // Assuming the search query is passed as a query parameter (e.g., /api/users/search?q=keyword)
+    const query = req.params.query;
     if (!query) {
       return res
         .status(400)
         .send({ error: 'Search query parameter "q" is required' });
     }
 
-    // Perform case-insensitive search by name or email
-    const users = await User.find({
-      $or: [
-        { name: { $regex: new RegExp(query, "i") } },
-        { email: { $regex: new RegExp(query, "i") } },
-      ],
-    }).select("name email");
+    let users = await User.find({
+      $or: [{ name: { $regex: new RegExp(query, "i") } }],
+    }).select("name");
+
+    users.sort((a, b) => {
+      const indexA = a.name.toLowerCase().indexOf(query.toLowerCase());
+      const indexB = b.name.toLowerCase().indexOf(query.toLowerCase());
+      return indexA - indexB;
+    });
+
+    users = users.slice(0, 20);
 
     res.status(200).send(users);
   } catch (error) {
@@ -233,4 +315,6 @@ module.exports = {
   getFollowers,
   getFollowing,
   searchUser,
+  getPeople,
+  getPeoplePosts,
 };

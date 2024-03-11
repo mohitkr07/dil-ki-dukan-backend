@@ -24,5 +24,7 @@ router.route("/follow/:id").patch(userController.followUser);
 router.route("/followers").get(userController.getFollowers);
 router.route("/following").get(userController.getFollowing);
 router.route("/search/:query").get(userController.searchUser);
+router.route("/people/:id").get(userController.getPeople);
+router.route("/peoplePosts/:id").get(userController.getPeoplePosts);
 
 module.exports = router;
