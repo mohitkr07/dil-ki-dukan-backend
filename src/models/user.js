@@ -31,6 +31,12 @@ const userSchema = new mongoose.Schema({
   link: {
     type: String,
   },
+  profilePicture: {
+    type: String,
+  },
+  coverPic: {
+    type: String,
+  },
   tokens: [
     {
       token: {

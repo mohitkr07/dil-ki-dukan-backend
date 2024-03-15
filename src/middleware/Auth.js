@@ -26,7 +26,7 @@ const auth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    res.status(500).send({ message: "Some Internal Error" });
+    res.status(500).send({ message: "Somee Internal Error" });
   }
 };
 

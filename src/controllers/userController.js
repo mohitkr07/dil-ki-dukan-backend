@@ -288,7 +288,7 @@ const searchUser = async (req, res) => {
 
     let users = await User.find({
       $or: [{ name: { $regex: new RegExp(query, "i") } }],
-    }).select("name");
+    }).select("name profilePicture");
 
     users.sort((a, b) => {
       const indexA = a.name.toLowerCase().indexOf(query.toLowerCase());
@@ -300,6 +300,80 @@ const searchUser = async (req, res) => {
 
     res.status(200).send(users);
   } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+};
+
+const updateProfilePic = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ error: "No file uploaded" });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const userId = req.user._id;
+    const user = req.user;
+
+    const fileStream = cloudinary.uploader.upload_stream(
+      { folder: "profile" },
+      async function (error, result) {
+        if (error) {
+          console.error("Error uploading file to Cloudinary:", error);
+          res.status(500).send({ error: "Error uploading file" });
+        } else {
+          user.profilePicture = result.secure_url;
+          await user.save();
+
+          res.status(200).send({
+            message: "Profile picture updated",
+            user,
+          });
+        }
+      }
+    );
+
+    fileStream.write(fileBuffer);
+    fileStream.end();
+  } catch (error) {
+    console.error("Error updating profile picture:", error);
+    res.status(500).send({ error: error.message });
+  }
+};
+
+const updateCoverPic = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ error: "No file uploaded" });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const userId = req.user._id;
+    const user = req.user;
+
+    const fileStream = cloudinary.uploader.upload_stream(
+      { folder: "cover" },
+      async function (error, result) {
+        if (error) {
+          console.error("Error uploading file to Cloudinary:", error);
+          res.status(500).send({ error: "Error uploading file" });
+        } else {
+          user.coverPic = result.secure_url;
+          await user.save();
+
+          res.status(200).send({
+            message: "Cover picture updated",
+            user,
+          });
+        }
+      }
+    );
+
+    fileStream.write(fileBuffer);
+    fileStream.end();
+
+    // res.status(200).send({ message: "Profile picture updated" });
+  } catch (error) {
+    console.error("Error updating profile picture:", error);
     res.status(500).send({ error: error.message });
   }
 };
@@ -317,4 +391,6 @@ module.exports = {
   searchUser,
   getPeople,
   getPeoplePosts,
+  updateProfilePic,
+  updateCoverPic,
 };
