@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const cloudinary = require("cloudinary").v2;
 const Post = require("../models/post");
+const Comment = require("../models/comment");
 
 // test api to upload image to cloudinary
 const test = async (req, res) => {
@@ -378,6 +379,156 @@ const updateCoverPic = async (req, res) => {
   }
 };
 
+const comment = async (req, res) => {
+  try {
+    const { content } = req.body;
+    const commentId = req.body.commentId;
+    const { postId } = req.params;
+    const userId = req.user._id;
+
+    console.log("commentId", commentId);
+
+    const post = await Post.findById({ _id: postId });
+
+    if (!post) {
+      return res.status(404).send({ message: "Post not found" });
+    }
+
+    if (commentId) {
+      const comment = await Comment.findById(commentId);
+      if (!comment) {
+        return res.status(404).send({ message: "Comment not found" });
+      }
+      const reply = await Comment.create({
+        content,
+        user: userId,
+        post: post._id,
+        isReply: true,
+      });
+      comment.replies.push(reply._id);
+      await comment.save();
+      return res.status(201).send({ message: "Reply created" });
+    }
+
+    const newComment = await Comment.create({
+      content,
+      user: userId,
+      post: post._id,
+    });
+
+    res.status(201).send({ message: "Comment created", newComment });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal server error" });
+  }
+};
+
+const getComments = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId)
+      .populate({
+        path: "populatedComments",
+        match: { isReply: false },
+        populate: {
+          path: "user",
+          model: "User",
+          select: "name profilePicture",
+        },
+      })
+      .exec();
+
+    if (!post) {
+      return res.status(404).send({ message: "Post not found" });
+    }
+
+    console.log(post);
+
+    res.status(200).send({
+      message: "Comments fetched",
+      comments: post.populatedComments,
+      postId: post._id,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal server error" });
+  }
+};
+
+const getReplies = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    const comment = await Comment.findById(commentId)
+      .populate("replies")
+      .populate({
+        path: "replies",
+        populate: {
+          path: "user",
+          model: "User",
+          select: "name profilePicture",
+        },
+      });
+
+    if (!comment) {
+      return res.status(404).send({ message: "Comment not found" });
+    }
+
+    console.log(comment);
+
+    res.status(200).send({
+      message: "Comments fetched",
+      comment: comment,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Internal server error" });
+  }
+};
+
+const likeComment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { commentId } = req.params;
+
+    const comment = await Comment.findById(commentId);
+
+    if (!comment) {
+      return res.status(404).send({ message: "Comment not found" });
+    }
+
+    const alreadyLiked = comment.likes.findIndex((like) =>
+      like.user.equals(userId)
+    );
+
+    if (alreadyLiked !== -1) {
+      console.log(alreadyLiked);
+      comment.likes.splice(alreadyLiked, 1);
+      await comment.save();
+
+      const updatedComment = await Comment.findById(commentId)
+        // .populate("likes.user")
+        .populate("user");
+      return res
+        .status(200)
+        .send({ message: "Comment unliked", comment: updatedComment });
+    } else {
+      comment.likes.push({ user: userId });
+      await comment.save();
+      const updatedComment = await Comment.findById(commentId)
+        // .populate("likes.user")
+        .populate("user");
+      return res.status(200).json({
+        message: "Comment liked successfully",
+        comment: updatedComment,
+      });
+    }
+  } catch (error) {
+    res.status(500).send({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   test,
   getUser,
@@ -393,4 +544,8 @@ module.exports = {
   getPeoplePosts,
   updateProfilePic,
   updateCoverPic,
+  comment,
+  getComments,
+  getReplies,
+  likeComment,
 };

@@ -10,6 +10,29 @@ const postSchema = new mongoose.Schema({
   likes: [likeSchema],
   quoteUrl: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
+  comments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+    },
+  ],
+});
+
+postSchema.virtual("populatedComments", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "post",
+  justOne: false,
+  populate: [
+    {
+      path: "replies",
+      model: "Comment",
+    },
+    {
+      path: "user",
+      model: "User",
+    },
+  ],
 });
 
 const Post = mongoose.model("Post", postSchema);

@@ -78,7 +78,6 @@ userSchema.methods.unfollow = async function (userIdToUnfollow) {
   }
 };
 
-// Create a virtual field to get followers
 userSchema.virtual("followers", {
   ref: "User",
   localField: "_id",

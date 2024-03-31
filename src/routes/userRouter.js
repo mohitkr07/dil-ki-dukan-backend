@@ -52,5 +52,9 @@ router.route("/following").get(userController.getFollowing);
 router.route("/search/:query").get(userController.searchUser);
 router.route("/people/:id").get(userController.getPeople);
 router.route("/peoplePosts/:id").get(userController.getPeoplePosts);
+router.route("/comment/:postId").post(userController.comment);
+router.route("/comments/:postId").get(userController.getComments);
+router.route("/replies/:commentId").get(userController.getReplies);
+router.route("/likeComment/:commentId").patch(userController.likeComment);
 
 module.exports = router;
