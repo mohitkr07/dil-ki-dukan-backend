@@ -10,8 +10,6 @@ const test = async (req, res) => {
       "https://images.unsplash.com/photo-1515138692129-197a2c608cfd?q=80&w=1887&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       { public_id: "Bark_girlllll", overwrite: true } // Add overwrite: true to force using the specified public_id
     );
-
-    console.log(result);
     res.send({ message: "done" });
   } catch (error) {
     console.error(error);
@@ -37,10 +35,6 @@ const getUser = async (req, res) => {
       followers: user.followers,
     };
 
-    console.log("usermod", userMod);
-
-    console.log("user", user);
-
     res.status(200).send({ message: "User fetched", user: userMod });
   } catch (error) {
     res.send({ msg: "error" });
@@ -60,11 +54,8 @@ const getPeople = async (req, res) => {
       followers: user.followers,
     };
 
-    console.log("people", user);
-
     res.status(200).send({ message: "User fetched", user: userMod });
   } catch (error) {
-    console.log(error);
     res.send({ msg: "error" });
   }
 };
@@ -98,21 +89,45 @@ const updateUser = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     const authorId = req.user._id;
+    if (!req.file) return res.status(400).send({ error: "No file uploaded" });
     const file = req.file;
-    console.log("file", req.file);
 
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: "posts",
-    });
+    const fileBuffer = req.file.buffer;
 
-    const newPost = await Post.create({
-      author: authorId,
-      quoteUrl: result.secure_url,
-    });
+    const fileStream = cloudinary.uploader.upload_stream(
+      { folder: "posts" },
+      async function (error, result) {
+        if (error) {
+          console.error("Error uploading file to Cloudinary:", error);
+          res.status(500).send({ error: "Error uploading file" });
+        } else {
+          const newPost = await Post.create({
+            author: authorId,
+            quoteUrl: result.secure_url,
+          });
 
-    await newPost.save();
+          await newPost.save();
 
-    res.status(201).send({ message: "Post created", newPost });
+          res.status(201).send({ message: "Post created" });
+        }
+      }
+    );
+
+    fileStream.write(fileBuffer);
+    fileStream.end();
+
+    // const result = await cloudinary.uploader.upload(file.path, {
+    //   folder: "posts",
+    // });
+
+    // const newPost = await Post.create({
+    //   author: authorId,
+    //   quoteUrl: result.secure_url,
+    // });
+
+    // await newPost.save();
+
+    // res.status(201).send({ message: "Post created" });
   } catch (error) {
     console.error("Error uploading image to Cloudinary:", error);
     res.status(500).json({ error: "Failed to upload image to Cloudinary" });
@@ -136,8 +151,6 @@ const getPosts = async (req, res) => {
         liked,
       };
     });
-
-    console.log(withLikes);
 
     res.status(200).send({ message: "Posts fetched", posts: withLikes });
   } catch (error) {
@@ -164,8 +177,6 @@ const getPeoplePosts = async (req, res) => {
       };
     });
 
-    console.log(withLikes);
-
     res.status(200).send({ message: "Posts fetched", posts: withLikes });
   } catch (error) {
     res.status(500).send({ message: "Internal server error" });
@@ -179,8 +190,6 @@ const likePost = async (req, res) => {
 
     const post = await Post.findById(postId);
 
-    console.log(post);
-
     if (!post) {
       return res.status(404).send({ message: "Post not found" });
     }
@@ -190,7 +199,6 @@ const likePost = async (req, res) => {
     );
 
     if (alreadyLiked !== -1) {
-      console.log(alreadyLiked);
       post.likes.splice(alreadyLiked, 1);
       await post.save();
 
@@ -386,8 +394,6 @@ const comment = async (req, res) => {
     const { postId } = req.params;
     const userId = req.user._id;
 
-    console.log("commentId", commentId);
-
     const post = await Post.findById({ _id: postId });
 
     if (!post) {
@@ -418,7 +424,6 @@ const comment = async (req, res) => {
 
     res.status(201).send({ message: "Comment created", newComment });
   } catch (error) {
-    console.log(error);
     res.status(500).send({ message: "Internal server error" });
   }
 };
@@ -443,15 +448,12 @@ const getComments = async (req, res) => {
       return res.status(404).send({ message: "Post not found" });
     }
 
-    console.log(post);
-
     res.status(200).send({
       message: "Comments fetched",
       comments: post.populatedComments,
       postId: post._id,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).send({ message: "Internal server error" });
   }
 };
@@ -475,14 +477,11 @@ const getReplies = async (req, res) => {
       return res.status(404).send({ message: "Comment not found" });
     }
 
-    console.log(comment);
-
     res.status(200).send({
       message: "Comments fetched",
       comment: comment,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).send({ message: "Internal server error" });
   }
 };
@@ -503,7 +502,6 @@ const likeComment = async (req, res) => {
     );
 
     if (alreadyLiked !== -1) {
-      console.log(alreadyLiked);
       comment.likes.splice(alreadyLiked, 1);
       await comment.save();
 
