@@ -6,9 +6,11 @@ const feedPost = async (req, res) => {
   try {
     const userId = req.user._id;
     const following = req.user.following;
-    const feedPosts = await Post.find({ author: { $in: following } })
+    const feedPosts = await Post.find({
+      // author: { $in: following }
+    })
       .sort({ createdAt: -1 })
-      .populate("author", "name email")
+      .populate("author", "name email profilePicture")
       .populate("likes.user")
       .sort({ createdAt: -1 });
 
